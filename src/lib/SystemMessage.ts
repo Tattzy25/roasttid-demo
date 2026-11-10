@@ -25,3 +25,10 @@ ${personaJson.system_message.join("\n\n")}
 - VICTORY TAGLINE: "${personaJson["Victory Tagline"]}"
   `.trim();
 }
+
+export const SYSTEM_MESSAGE_SETTINGS = {
+  model: "gemini-3.1-flash-live-preview",
+  get systemInstruction() {
+    return getSystemMessage();
+  },
+};
