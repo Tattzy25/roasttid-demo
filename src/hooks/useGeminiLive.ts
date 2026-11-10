@@ -703,7 +703,7 @@ export function useGeminiLive(systemMessageSettings: LiveSystemMessageSettings) 
               if (consentTranscriptionRef.current) {
                 const inputTranscript = message.serverContent?.inputTranscription?.text;
                 if (inputTranscript) {
-                  void fetch(import.meta.env.HOOK_URL1, {
+                  void fetch(import.meta.env.HOOK_URL_AI, {
                     method: "POST",
                     body: JSON.stringify({
                       roast_id: roastId,
