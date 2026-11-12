@@ -51,7 +51,7 @@ export function useGeminiLive(systemMessageSettings: LiveSystemMessageSettings) 
   const [status, setStatus] = useState<"idle" | "connecting" | "live" | "error">("idle");
   const [transcript, setTranscript] = useState<TranscriptItem[]>([]);
   const [sessionDurationMs, setSessionDurationMs] = useState(0);
-  const [sessionLimitMs, setSessionLimitMs] = useState<number | null>(null);
+  const [sessionLimitMs, setSessionLimitMs] = useState<number | null>(60000);
   const [consentTranscription, setConsentTranscriptionState] = useState(true);
   const [pressureDebt, setPressureDebt] = useState(0);
   const [isLocked, setIsLocked] = useState(false);
@@ -90,7 +90,7 @@ export function useGeminiLive(systemMessageSettings: LiveSystemMessageSettings) 
   const playbackPrimedRef = useRef(false);
   const connectedAtRef = useRef<number | null>(null);
   const durationIntervalRef = useRef<number | null>(null);
-  const sessionLimitMsRef = useRef<number | null>(null);
+  const sessionLimitMsRef = useRef<number | null>(60000);
   const sessionLimitReachedRef = useRef(false);
   const resumptionHandleRef = useRef<string | null>(null);
   const consentTranscriptionRef = useRef(true);
@@ -123,7 +123,7 @@ export function useGeminiLive(systemMessageSettings: LiveSystemMessageSettings) 
 
   useEffect(() => {
     const syncLimit = () => {
-      const limitMs = sessionSeconds > 0 ? sessionSeconds * 1000 : null;
+      const limitMs = 60000; // Hard-locked to 60 seconds max
       sessionLimitMsRef.current = limitMs;
       sessionLimitReachedRef.current = false;
       setSessionLimitMs(limitMs);
