@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { PhoneOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
-import { PhoneCallIcon, type PhoneCallIconHandle } from './components/ui/phone-call';
+import { CursorEdgeGlowButton } from './components/ui/cursor-edge-glow-button';
 import { CameraPreview } from './components/video/CameraPreview';
 import { ConnectingOverlay } from './components/ui/ConnectingOverlay';
 import { WreckShader } from './components/WreckShader';
@@ -12,7 +12,6 @@ import { selectedVoice } from './lib/voices';
 
 export default function App() {
   const stageRef = useRef<HTMLDivElement>(null);
-  const phoneIconRef = useRef<PhoneCallIconHandle>(null);
   const {
     isConnected,
     isMuted,
@@ -20,6 +19,11 @@ export default function App() {
     isAudioPlaying,
     micVolume,
     isUserTalking,
+    transcript,
+    sessionEnded,
+    isRecording,
+    startRecording,
+    stopRecording,
     status,
     videoRef,
     canvasRef,
@@ -29,13 +33,19 @@ export default function App() {
     flipCamera,
   } = useGeminiLive(SYSTEM_MESSAGE_SETTINGS);
 
-  React.useEffect(() => {
-    if (status === "connecting") {
-      phoneIconRef.current?.startAnimation();
-    } else {
-      phoneIconRef.current?.stopAnimation();
-    }
-  }, [status]);
+  const downloadTranscript = () => {
+    if (!transcript.length) return;
+    const text = transcript
+      .map((item) => `[${item.role === 'agent' ? 'ROASTTID' : 'YOU'}]: ${item.text}`)
+      .join('\n\n');
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `roasttid-transcript-${Date.now()}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const visualMode: 'idle' | 'listening' | 'speaking' = isAudioPlaying
     ? 'speaking'
@@ -81,83 +91,98 @@ export default function App() {
             />
           </div>
 
-          {/* Phone button (pre-call) / Dock (in-call) */}
-          <AnimatePresence mode="wait">
-            {!isConnected ? (
+          {/* Download Transcript Pill (Appears when session ends and transcript exists in localStorage/state) */}
+          <AnimatePresence>
+            {!isConnected && sessionEnded && transcript.length > 0 && (
               <motion.button
-                key="disconnected-screen"
-                id="btn-start-call"
+                key="download-transcript-button"
+                id="btn-download-transcript"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 type="button"
-                onClick={() => startConnection(selectedVoice)}
-                disabled={status === "connecting"}
-                aria-label="start_call"
+                onClick={downloadTranscript}
+                className={cn(
+                  "absolute bottom-[calc(max(1rem,env(safe-area-inset-bottom))+3.5rem)] left-1/2 -translate-x-1/2 z-20 pointer-events-auto",
+                  "flex items-center justify-center px-5 h-9 rounded-full font-mono text-xs uppercase tracking-widest",
+                  "bg-black/80 backdrop-blur-xl border border-white/80 shadow-[0_0_20px_rgba(0,0,0,0.8),inset_0_0_10px_rgba(255,255,255,0.1)]",
+                  "text-white cursor-pointer active:scale-95 hover:border-white transition-all duration-300 touch-manipulation"
+                )}
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              >
+                DOWNLOAD TRANSCRIPT
+              </motion.button>
+            )}
+          </AnimatePresence>
+
+          {/* In-Call Record Pill */}
+          <AnimatePresence>
+            {isConnected && (
+              <motion.button
+                key="record-button"
+                id="btn-record-call"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                type="button"
+                onClick={isRecording ? stopRecording : startRecording}
+                aria-label={isRecording ? "stop_recording" : "start_recording"}
+                className={cn(
+                  "absolute bottom-[calc(max(1rem,env(safe-area-inset-bottom))+3.5rem)] left-1/2 -translate-x-1/2 z-20 pointer-events-auto",
+                  "flex items-center justify-center gap-2 px-5 h-9 rounded-full font-mono text-xs uppercase tracking-widest",
+                  "bg-black/80 backdrop-blur-xl border border-white/80 shadow-[0_0_20px_rgba(0,0,0,0.8),inset_0_0_10px_rgba(255,255,255,0.1)]",
+                  "text-white cursor-pointer active:scale-95 hover:border-white transition-all duration-300 touch-manipulation"
+                )}
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              >
+                <span
+                  className={cn(
+                    "w-2 h-2 rounded-full bg-red-500",
+                    isRecording && "animate-ping"
+                  )}
+                />
+                <span>{isRecording ? "REC" : "RECORD"}</span>
+              </motion.button>
+            )}
+          </AnimatePresence>
+
+          {/* Phone button (pre-call) / Dock (in-call) */}
+          <AnimatePresence mode="wait">
+            {!isConnected ? (
+              <motion.button
+              key="disconnected-screen"
+              id="btn-start-call"
+              aria-label="start_call"
+              type="button"
+              onClick={() => startConnection(selectedVoice)}
+              disabled={status === "connecting"}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute bottom-[max(2.25rem,calc(env(safe-area-inset-bottom)+1rem))] ..."
+            >
+              <CursorEdgeGlowButton />
+            </motion.button>
+            ) : (
+              <motion.button
+                key="connected-screen"
+                id="btn-end-call"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                type="button"
+                onClick={disconnect}
+                aria-label="end_call"
                 className={cn(
                   "absolute bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-20 pointer-events-auto",
                   "flex items-center justify-center w-60 max-w-[calc(100vw-32px)] h-11 rounded-full",
                   "bg-black/80 backdrop-blur-xl border border-white/80 shadow-[0_0_20px_rgba(0,0,0,0.8),inset_0_0_10px_rgba(255,255,255,0.1)]",
-                  "text-green-400 cursor-pointer active:scale-95 hover:border-white transition-all duration-300 touch-manipulation",
-                  status === "connecting" && "opacity-50 cursor-not-allowed"
+                  "text-red-500 cursor-pointer active:scale-90 hover:border-white transition-all duration-300 touch-manipulation"
                 )}
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
-                <PhoneCallIcon
-                  ref={phoneIconRef}
-                  className="w-8 h-8 block pointer-events-none"
-                />
+                <PhoneOff size={24} className="pointer-events-none" />
               </motion.button>
-            ) : (
-              <React.Fragment key="connected-screen">
-                <motion.button
-                  id="btn-record-call"
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  whileTap={{ scale: 0.92 }}
-                  type="button"
-                  onClick={isRecording ? stopRecording : startRecording}
-                  aria-label={isRecording ? "stop_recording" : "start_recording"}
-                  className={cn(
-                    "absolute bottom-[calc(max(1rem,env(safe-area-inset-bottom))+3.5rem)] left-1/2 -translate-x-1/2 z-20 pointer-events-auto",
-                    "flex items-center justify-center gap-2 px-5 h-9 rounded-full font-mono text-xs uppercase tracking-widest",
-                    "bg-black/80 backdrop-blur-xl border shadow-[0_0_20px_rgba(0,0,0,0.8),inset_0_0_10px_rgba(255,255,255,0.1)]",
-                    "cursor-pointer transition-all duration-300 touch-manipulation",
-                    isRecording
-                      ? "border-red-500 text-white"
-                      : "border-white/80 text-zinc-300 hover:border-white hover:text-white"
-                  )}
-                  style={{ WebkitTapHighlightColor: 'transparent' }}
-                >
-                  <span
-                    className={cn(
-                      "w-2 h-2 rounded-full bg-red-500",
-                      isRecording && "animate-ping"
-                    )}
-                  />
-                  <span>{isRecording ? "REC" : "RECORD"}</span>
-                </motion.button>
-
-                <motion.button
-                  id="btn-end-call"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  type="button"
-                  onClick={disconnect}
-                  aria-label="end_call"
-                  className={cn(
-                    "absolute bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-20 pointer-events-auto",
-                    "flex items-center justify-center w-60 max-w-[calc(100vw-32px)] h-11 rounded-full",
-                    "bg-black/80 backdrop-blur-xl border border-white/80 shadow-[0_0_20px_rgba(0,0,0,0.8),inset_0_0_10px_rgba(255,255,255,0.1)]",
-                    "text-red-500 cursor-pointer active:scale-90 hover:border-white transition-all duration-300 touch-manipulation"
-                  )}
-                  style={{ WebkitTapHighlightColor: 'transparent' }}
-                >
-                  <PhoneOff size={24} className="pointer-events-none" />
-                </motion.button>
-              </React.Fragment>
             )}
           </AnimatePresence>
         </div>

@@ -272,15 +272,6 @@ const [transcript, setTranscript] = useState<TranscriptItem[]>(() => {
     setSessionDurationMs(0);
     setPressureDebt(0);
     window.parent.postMessage("ROASTTID_CALL_CONNECTED", "*");
-    
-    void fetch(import.meta.env.HOOK_URL1, {
-      method: "POST",
-      body: JSON.stringify({
-        roast_id: roastId,
-        event: "session_start"
-      }),
-    }).catch(() => {});
-    
     broadcastSessionState(0, 0, isLockedRef.current);
     durationIntervalRef.current = window.setInterval(() => {
       const elapsedMs = syncSessionDuration();
@@ -299,16 +290,6 @@ const [transcript, setTranscript] = useState<TranscriptItem[]>(() => {
     pressureDebtRef.current = 0;
     setPressureDebt(0);
     window.parent.postMessage("ROASTTID_CALL_ENDED", "*");
-
-    void fetch(import.meta.env.HOOK_URL1, {
-      method: "POST",
-      body: JSON.stringify({
-        roast_id: roastId,
-        event: "session_ended",
-        durationMs: finalElapsedMs,
-      }),
-    }).catch(() => {});
-
     broadcastSessionState(finalElapsedMs, 0, false);
   }, [stopDurationTimer, syncSessionDuration, clearInterruptionLock, broadcastSessionState]);
 
@@ -722,7 +703,7 @@ const [transcript, setTranscript] = useState<TranscriptItem[]>(() => {
 
     setIsConnected(false);
     setStatus("idle");
-    setTranscript([]);
+    setSessionEnded(true);
     setSessionDurationMs(0);
   }, [cleanupMedia, endSessionTracking, resetPlayback]);
 
@@ -732,6 +713,11 @@ const [transcript, setTranscript] = useState<TranscriptItem[]>(() => {
     async (selectedVoice: string) => {
       try {
         setStatus("connecting");
+        setSessionEnded(false);
+        setTranscript([]);
+        try {
+          localStorage.removeItem("roasttid_last_transcript");
+        } catch {}
         manualDisconnectRef.current = false;
 
         await initAudio();
@@ -796,26 +782,12 @@ const [transcript, setTranscript] = useState<TranscriptItem[]>(() => {
               if (consentTranscriptionRef.current) {
                 const inputTranscript = message.serverContent?.inputTranscription?.text;
                 if (inputTranscript) {
-                  void fetch(import.meta.env.HOOK_URL_AI, {
-                    method: "POST",
-                    body: JSON.stringify({
-                      roast_id: roastId,
-                      role: "user",
-                      text: inputTranscript,
-                    }),
-                  }).catch(() => {});
+                  appendTranscript("user", inputTranscript);
                 }
 
                 const outputTranscript = message.serverContent?.outputTranscription?.text;
                 if (outputTranscript) {
-                  void fetch(import.meta.env.HOOK_URL1, {
-                    method: "POST",
-                    body: JSON.stringify({
-                      roast_id: roastId,
-                      role: "agent",
-                      text: outputTranscript,
-                    }),
-                  }).catch(() => {});
+                  appendTranscript("agent", outputTranscript);
                 }
               }
 
@@ -847,6 +819,7 @@ const [transcript, setTranscript] = useState<TranscriptItem[]>(() => {
               sessionRef.current = null;
               setIsConnected(false);
               setStatus("idle");
+              setSessionEnded(true);
               setSessionDurationMs(0);
 
               if (!manualDisconnectRef.current) {
@@ -893,6 +866,7 @@ const [transcript, setTranscript] = useState<TranscriptItem[]>(() => {
       }
     },
     [
+      appendTranscript,
       beginSessionTracking,
       cleanupMedia,
       endSessionTracking,
@@ -950,6 +924,7 @@ const [transcript, setTranscript] = useState<TranscriptItem[]>(() => {
     micVolume,
     isUserTalking,
     transcript,
+    sessionEnded,
     status,
     sessionDurationMs,
     sessionLimitMs,
