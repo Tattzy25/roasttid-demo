@@ -145,7 +145,7 @@ export function CursorEdgeGlowButton() {
           <span className="absolute top-1/2 h-[121px] w-[121px] -translate-y-1/2 [background:radial-gradient(50%_50%_at_50%_50%,#fffff5_3.5%,#ffaa81_26.5%,#ffda9f_37.5%,rgba(255,170,129,.5)_49%,rgba(210,106,58,0)_92.5%)]" />
           <span className="absolute top-1/2 h-[103px] w-[204px] -translate-y-1/2 blur-[5px] [background:radial-gradient(43.3%_44.23%_at_50%_49.51%,#fffff7_29%,#fffacd_48.5%,#f4d2bf_60.71%,rgba(214,211,210,0)_100%)]" />
         </span>
-        <span>See in Action</span>
+        <span>Start Roasttin</span>
         <svg className="h-[9px] w-[17px] flex-none text-[#5a250a]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 17 9" aria-hidden="true">
           <path fill="currentColor" fillRule="evenodd" d="m12.495 0 4.495 4.495-4.495 4.495-.99-.99 2.805-2.805H0v-1.4h14.31L11.505.99z" clipRule="evenodd" />
         </svg>
