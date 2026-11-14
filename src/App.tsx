@@ -2,8 +2,8 @@ import React, { useRef } from 'react';
 import { PhoneOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
-import { CursorEdgeGlowButton } from './components/ui/cursor-edge-glow-button';
 import { CameraPreview } from './components/video/CameraPreview';
+import { CursorEdgeGlowButton } from './components/ui/cursor-edge-glow-button';
 import { ConnectingOverlay } from './components/ui/ConnectingOverlay';
 import { WreckShader } from './components/WreckShader';
 import { useGeminiLive } from './hooks/useGeminiLive';
@@ -149,20 +149,21 @@ export default function App() {
           {/* Phone button (pre-call) / Dock (in-call) */}
           <AnimatePresence mode="wait">
             {!isConnected ? (
-              <motion.button
-              key="disconnected-screen"
-              id="btn-start-call"
-              aria-label="start_call"
-              type="button"
-              onClick={() => startConnection(selectedVoice)}
-              disabled={status === "connecting"}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute bottom-[max(2.25rem,calc(env(safe-area-inset-bottom)+1rem))] ..."
-            >
-              <CursorEdgeGlowButton />
-            </motion.button>
+              <motion.div
+                key="disconnected-screen"
+                id="btn-start-call"
+                role="button"
+                aria-label="start_call"
+                onClick={() => {
+                  if (status !== "connecting") startConnection(selectedVoice);
+                }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-20 pointer-events-auto"
+              >
+                <CursorEdgeGlowButton />
+              </motion.div>
             ) : (
               <motion.button
                 key="connected-screen"
