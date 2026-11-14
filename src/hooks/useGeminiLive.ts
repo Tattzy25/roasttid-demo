@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GoogleGenAI, Modality, type LiveServerMessage } from "@google/genai";
 import { toast } from "sonner";
-import { roastId, sessionSeconds } from "../lib/sessionData";
 import { sessionManager } from '../lib/sessionManager';
 
 const INPUT_RATE = 16000;
@@ -49,26 +48,13 @@ export function useGeminiLive(systemMessageSettings: LiveSystemMessageSettings) 
   const [micVolume, setMicVolume] = useState(0);
   const [isUserTalking, setIsUserTalking] = useState(false);
   const [status, setStatus] = useState<"idle" | "connecting" | "live" | "error">("idle");
-const [transcript, setTranscript] = useState<TranscriptItem[]>(() => {
-    try {
-      const saved = localStorage.getItem("roasttid_last_transcript");
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-  const [sessionEnded, setSessionEnded] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordedVideoUrl, setRecordedVideoUrl] = useState<string | null>(null);
+  const [transcript, setTranscript] = useState<TranscriptItem[]>([]);
   const [sessionDurationMs, setSessionDurationMs] = useState(0);
   const [sessionLimitMs, setSessionLimitMs] = useState<number | null>(60000);
   const [consentTranscription, setConsentTranscriptionState] = useState(true);
   const [pressureDebt, setPressureDebt] = useState(0);
   const [isLocked, setIsLocked] = useState(false);
 
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const recordedChunksRef = useRef<Blob[]>([]);
-  const mixDestRef = useRef<MediaStreamAudioDestinationNode | null>(null);
   const isMutedRef = useRef(false);
   const isVideoEnabledRef = useRef(true);
   const cameraFacingRef = useRef<"user" | "environment">("user");
@@ -136,7 +122,7 @@ const [transcript, setTranscript] = useState<TranscriptItem[]>(() => {
 
   useEffect(() => {
     const syncLimit = () => {
-      const limitMs = 60000;
+      const limitMs = 60000; // Hard-locked to 60 seconds max
       sessionLimitMsRef.current = limitMs;
       sessionLimitReachedRef.current = false;
       setSessionLimitMs(limitMs);
@@ -145,24 +131,6 @@ const [transcript, setTranscript] = useState<TranscriptItem[]>(() => {
     syncLimit();
     window.addEventListener("message", syncLimit);
     return () => window.removeEventListener("message", syncLimit);
-  }, []);
-
-  const appendTranscript = useCallback((role: "user" | "agent", text: string) => {
-    const clean = text.trim();
-    if (!clean) return;
-    setTranscript((prev) => {
-      const next = [...prev];
-      const last = next[next.length - 1];
-      if (last && last.role === role) {
-        next[next.length - 1] = { role, text: `${last.text} ${clean}` };
-      } else {
-        next.push({ role, text: clean });
-      }
-      try {
-        localStorage.setItem("roasttid_last_transcript", JSON.stringify(next));
-      } catch {}
-      return next;
-    });
   }, []);
 
   const clearInterruptionLock = useCallback(() => {
@@ -334,12 +302,6 @@ const [transcript, setTranscript] = useState<TranscriptItem[]>(() => {
       silentGainRef.current.disconnect();
       silentGainRef.current = null;
     }
-
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-      mediaRecorderRef.current.stop();
-      mediaRecorderRef.current = null;
-    }
-    setIsRecording(false);
 
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
@@ -594,63 +556,7 @@ const [transcript, setTranscript] = useState<TranscriptItem[]>(() => {
     };
 
     startVideoCapture();
-
-    // Route user mic into the shared mixer node so it's ready IF the user clicks Record
-    if (outputCtxRef.current && mixDestRef.current) {
-      const micInOutputCtx = outputCtxRef.current.createMediaStreamSource(stream);
-      micInOutputCtx.connect(mixDestRef.current);
-    }
   }, [startVideoCapture]);
-
-  const startRecording = useCallback(() => {
-    if (
-      !streamRef.current ||
-      !mixDestRef.current ||
-      (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive")
-    ) {
-      return;
-    }
-
-    if (recordedVideoUrl) {
-      URL.revokeObjectURL(recordedVideoUrl);
-      setRecordedVideoUrl(null);
-    }
-
-    const combinedTracks = [
-      ...streamRef.current.getVideoTracks(),
-      ...mixDestRef.current.stream.getAudioTracks(),
-    ];
-    const combinedStream = new MediaStream(combinedTracks);
-
-    recordedChunksRef.current = [];
-    const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")
-      ? "video/webm;codecs=vp9,opus"
-      : "video/webm";
-
-    const recorder = new MediaRecorder(combinedStream, { mimeType });
-    recorder.ondataavailable = (e) => {
-      if (e.data && e.data.size > 0) recordedChunksRef.current.push(e.data);
-    };
-    recorder.onstop = () => {
-      setIsRecording(false);
-      if (recordedChunksRef.current.length > 0) {
-        const blob = new Blob(recordedChunksRef.current, { type: mimeType });
-        setRecordedVideoUrl(URL.createObjectURL(blob));
-      }
-    };
-
-    recorder.start(1000);
-    mediaRecorderRef.current = recorder;
-    setIsRecording(true);
-  }, [recordedVideoUrl]);
-
-  const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-      mediaRecorderRef.current.stop();
-      mediaRecorderRef.current = null;
-    }
-    setIsRecording(false);
-  }, []);
 
   const flipCamera = useCallback(async () => {
     if (!streamRef.current) return;
@@ -703,7 +609,7 @@ const [transcript, setTranscript] = useState<TranscriptItem[]>(() => {
 
     setIsConnected(false);
     setStatus("idle");
-    setSessionEnded(true);
+    setTranscript([]);
     setSessionDurationMs(0);
   }, [cleanupMedia, endSessionTracking, resetPlayback]);
 
@@ -713,11 +619,6 @@ const [transcript, setTranscript] = useState<TranscriptItem[]>(() => {
     async (selectedVoice: string) => {
       try {
         setStatus("connecting");
-        setSessionEnded(false);
-        setTranscript([]);
-        try {
-          localStorage.removeItem("roasttid_last_transcript");
-        } catch {}
         manualDisconnectRef.current = false;
 
         await initAudio();
@@ -779,18 +680,6 @@ const [transcript, setTranscript] = useState<TranscriptItem[]>(() => {
                 resumptionHandleRef.current = newHandle;
               }
 
-              if (consentTranscriptionRef.current) {
-                const inputTranscript = message.serverContent?.inputTranscription?.text;
-                if (inputTranscript) {
-                  appendTranscript("user", inputTranscript);
-                }
-
-                const outputTranscript = message.serverContent?.outputTranscription?.text;
-                if (outputTranscript) {
-                  appendTranscript("agent", outputTranscript);
-                }
-              }
-
               const parts = message.serverContent?.modelTurn?.parts ?? [];
 
               for (const part of parts) {
@@ -819,7 +708,6 @@ const [transcript, setTranscript] = useState<TranscriptItem[]>(() => {
               sessionRef.current = null;
               setIsConnected(false);
               setStatus("idle");
-              setSessionEnded(true);
               setSessionDurationMs(0);
 
               if (!manualDisconnectRef.current) {
@@ -866,7 +754,6 @@ const [transcript, setTranscript] = useState<TranscriptItem[]>(() => {
       }
     },
     [
-      appendTranscript,
       beginSessionTracking,
       cleanupMedia,
       endSessionTracking,
@@ -924,7 +811,6 @@ const [transcript, setTranscript] = useState<TranscriptItem[]>(() => {
     micVolume,
     isUserTalking,
     transcript,
-    sessionEnded,
     status,
     sessionDurationMs,
     sessionLimitMs,
@@ -932,9 +818,6 @@ const [transcript, setTranscript] = useState<TranscriptItem[]>(() => {
     isLocked,
     videoRef,
     canvasRef,
-    isRecording,
-    startRecording,
-    stopRecording,
     startConnection,
     disconnect,
     sendText,

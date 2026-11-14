@@ -20,10 +20,6 @@ export default function App() {
     micVolume,
     isUserTalking,
     transcript,
-    sessionEnded,
-    isRecording,
-    startRecording,
-    stopRecording,
     status,
     videoRef,
     canvasRef,
@@ -32,20 +28,6 @@ export default function App() {
     toggleMute,
     flipCamera,
   } = useGeminiLive(SYSTEM_MESSAGE_SETTINGS);
-
-  const downloadTranscript = () => {
-    if (!transcript.length) return;
-    const text = transcript
-      .map((item) => `[${item.role === 'agent' ? 'ROASTTID' : 'YOU'}]: ${item.text}`)
-      .join('\n\n');
-    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `roasttid-transcript-${Date.now()}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
 
   const visualMode: 'idle' | 'listening' | 'speaking' = isAudioPlaying
     ? 'speaking'
@@ -90,32 +72,6 @@ export default function App() {
               onFlip={flipCamera}
             />
           </div>
-
-          {/* Download Transcript Pill (Appears when session ends and transcript exists in localStorage/state) */}
-          <AnimatePresence>
-            {!isConnected && sessionEnded && transcript.length > 0 && (
-              <motion.button
-                key="download-transcript-button"
-                id="btn-download-transcript"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                type="button"
-                onClick={downloadTranscript}
-                className={cn(
-                  "absolute bottom-[calc(max(1rem,env(safe-area-inset-bottom))+3.5rem)] left-1/2 -translate-x-1/2 z-20 pointer-events-auto",
-                  "flex items-center justify-center px-5 h-9 rounded-full font-mono text-xs uppercase tracking-widest",
-                  "bg-black/80 backdrop-blur-xl border border-white/80 shadow-[0_0_20px_rgba(0,0,0,0.8),inset_0_0_10px_rgba(255,255,255,0.1)]",
-                  "text-white cursor-pointer active:scale-95 hover:border-white transition-all duration-300 touch-manipulation"
-                )}
-                style={{ WebkitTapHighlightColor: 'transparent' }}
-              >
-                DOWNLOAD TRANSCRIPT
-              </motion.button>
-            )}
-          </AnimatePresence>
-
-          
 
           {/* Phone button (pre-call) / Dock (in-call) */}
           <AnimatePresence mode="wait">
