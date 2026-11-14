@@ -115,36 +115,7 @@ export default function App() {
             )}
           </AnimatePresence>
 
-          {/* In-Call Record Pill */}
-          <AnimatePresence>
-            {isConnected && (
-              <motion.button
-                key="record-button"
-                id="btn-record-call"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                type="button"
-                onClick={isRecording ? stopRecording : startRecording}
-                aria-label={isRecording ? "stop_recording" : "start_recording"}
-                className={cn(
-                  "absolute bottom-[calc(max(1rem,env(safe-area-inset-bottom))+3.5rem)] left-1/2 -translate-x-1/2 z-20 pointer-events-auto",
-                  "flex items-center justify-center gap-2 px-5 h-9 rounded-full font-mono text-xs uppercase tracking-widest",
-                  "bg-black/80 backdrop-blur-xl border border-white/80 shadow-[0_0_20px_rgba(0,0,0,0.8),inset_0_0_10px_rgba(255,255,255,0.1)]",
-                  "text-white cursor-pointer active:scale-95 hover:border-white transition-all duration-300 touch-manipulation"
-                )}
-                style={{ WebkitTapHighlightColor: 'transparent' }}
-              >
-                <span
-                  className={cn(
-                    "w-2 h-2 rounded-full bg-red-500",
-                    isRecording && "animate-ping"
-                  )}
-                />
-                <span>{isRecording ? "REC" : "RECORD"}</span>
-              </motion.button>
-            )}
-          </AnimatePresence>
+          
 
           {/* Phone button (pre-call) / Dock (in-call) */}
           <AnimatePresence mode="wait">
