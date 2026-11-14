@@ -1,7 +1,7 @@
 export const VOICES = {
-  Vortex: "voice_5uv6itknrlr5",
+  Vortex: "charon",
 } as const;
 
 export type RoastPersona = keyof typeof VOICES;
 
-export const selectedVoice = "voice_5uv6itknrlr5";
+export const selectedVoice = "charon";
